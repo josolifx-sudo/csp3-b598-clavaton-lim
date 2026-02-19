@@ -3,16 +3,18 @@ import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useCartStore } from "../stores/cart";
 import { useOrdersStore } from "../stores/orders";
+import { useUiStore } from "../stores/ui";
 import api from "../api/axios";
 
 const router = useRouter();
 const cartStore = useCartStore();
 const orders = useOrdersStore();
+const ui = useUiStore();
 
 const isProcessing = ref(false);
 const paymentMethod = ref("card");
 
-// ✅ For manual GCash flow
+// manual GCash flow
 const gcashReference = ref("");
 
 // Helpers
@@ -20,13 +22,11 @@ const total = computed(() => Number(cartStore.total || 0));
 const isGCash = computed(() => paymentMethod.value === "gcash");
 
 async function handleCheckout() {
-  // 1) Validate cart state before proceeding
   if (!total.value || total.value <= 0) {
     alert("Your cart is empty.");
     return;
   }
 
-  // 2) If GCash, require a reference number (manual verification)
   if (isGCash.value) {
     const refNo = (gcashReference.value || "").trim();
     if (!refNo) {
@@ -43,7 +43,6 @@ async function handleCheckout() {
   console.log("🚀 Starting Checkout Process...");
 
   try {
-    // 3) Create the order record in your database
     const orderData = await orders.checkout();
     const orderId = orderData.order?._id;
 
@@ -52,7 +51,7 @@ async function handleCheckout() {
     }
     console.log("✅ Order Created:", orderId);
 
-    // ✅ 4A) MANUAL FLOW: GCash (no Stripe)
+    
     if (isGCash.value) {
       await api.post("/payments/gcash", {
         orderId,
@@ -60,21 +59,21 @@ async function handleCheckout() {
         referenceNumber: gcashReference.value.trim(),
       });
 
-      alert("GCash submitted! Your payment is pending admin verification.");
-      // Usually you'd send them to Orders so they can see status
+      
+      ui.centerToastNotify("Checkout successful. Payment pending verification.");
+
       router.push("/orders");
       return;
     }
 
-    // ✅ 4B) STRIPE FLOW: Card / Maya
+    
     const { data } = await api.post("/payments/stripe", {
       orderId,
       amount: total.value,
       methodType: paymentMethod.value, // "card" | "paymaya"
-      saveCard: paymentMethod.value === "card", // only makes sense for cards
+      saveCard: paymentMethod.value === "card",
     });
 
-    // 5) Redirect to Stripe
     if (data.url) {
       console.log("💳 Redirecting to Stripe Secure Page...");
       window.location.href = data.url;
@@ -140,7 +139,6 @@ async function handleCheckout() {
             </label>
           </div>
 
-          <!-- ✅ Manual GCash input -->
           <div v-if="paymentMethod === 'gcash'" class="mb-4">
             <label class="form-label text-muted">
               GCash Reference Number
@@ -175,7 +173,6 @@ async function handleCheckout() {
 </template>
 
 <style scoped>
-/* Keeping your existing styles for consistent UI */
 .payment-view {
   position: relative;
   background: #f4f7f9;

@@ -3,10 +3,12 @@ import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "../api/axios";
 import { useOrdersStore } from "../stores/orders";
+import { useUiStore } from "../stores/ui";
 
 const route = useRoute();
 const router = useRouter();
 const orders = useOrdersStore();
+const ui = useUiStore();
 
 const loading = ref(true);
 const success = ref(false);
@@ -22,18 +24,18 @@ onMounted(async () => {
   }
 
   try {
-    // ✅ verify-link should return { message, mode, payment? }
     const { data } = await api.post("/payments/verify-link", { sessionId });
 
     mode.value = data?.mode || "";
     success.value = true;
 
-    // ✅ refresh orders so status/paymentId updates immediately
     await orders.fetchMyOrders();
 
-    // ✅ redirect based on what happened:
-    // setup = linking card -> wallet
-    // payment = actual checkout -> orders (so they can download receipt)
+    // ✅ Center notification ONLY for checkout (payment)
+    if (mode.value === "payment") {
+      ui.centerToastNotify("Checkout successful. Payment confirmed.");
+    }
+
     setTimeout(() => {
       if (mode.value === "setup") {
         router.replace("/settings/payments");
@@ -48,14 +50,12 @@ onMounted(async () => {
     );
     success.value = false;
 
-    // fallback redirect
     setTimeout(() => router.replace("/orders"), 1200);
   } finally {
     loading.value = false;
   }
 });
 </script>
-
 
 <template>
   <div class="success-view">
@@ -65,14 +65,12 @@ onMounted(async () => {
     <div class="container d-flex justify-content-center align-items-center min-vh-100">
       <div class="glass-card p-5 text-center animate-in">
 
-        <!-- LOADING -->
         <div v-if="loading">
           <div class="spinner-border text-pink mb-4"></div>
           <h2 class="fw-bold text-dark">Linking your card…</h2>
           <p class="text-muted">Please wait while we secure your payment method.</p>
         </div>
 
-        <!-- SUCCESS -->
         <div v-else-if="success">
           <div class="checkmark-circle mb-4 mx-auto">
             <span class="checkmark">✓</span>
@@ -90,7 +88,6 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- FALLBACK -->
         <div v-else>
           <div class="error-icon mb-4">✕</div>
           <h2 class="fw-bold text-danger">Verification Pending</h2>
@@ -121,7 +118,6 @@ onMounted(async () => {
   font-family: 'Quicksand', sans-serif;
 }
 
-/* Background Blobs */
 .blob-1 {
   position: absolute;
   top: -10%; left: -5%;
@@ -148,7 +144,6 @@ onMounted(async () => {
   z-index: 1;
 }
 
-/* Success Checkmark */
 .checkmark-circle {
   width: 80px;
   height: 80px;
@@ -169,7 +164,6 @@ onMounted(async () => {
   color: #dc3545;
 }
 
-/* Buttons */
 .btn-atelier-primary {
   background: #ff8dad;
   color: white;
@@ -198,7 +192,6 @@ onMounted(async () => {
 
 .text-pink { color: #ff8dad; }
 
-/* Animation */
 .animate-in {
   animation: fadeInUp 0.6s ease-out;
 }
