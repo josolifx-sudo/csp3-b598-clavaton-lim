@@ -13,7 +13,7 @@ import AdminProductsView from "../views/AdminProductsView.vue";
 import OrdersView from "../views/OrdersView.vue";
 import PaymentView from "../views/PaymentView.vue";
 import PaymentSuccess from "../views/PaymentSuccess.vue";
-import SetUpSuccess from "../views/SetUpSuccess.vue";
+import SetupSuccess from "../views/SetupSuccess.vue";
 import AdminPayments from "../views/AdminPayment.vue";
 
 const routes = [
